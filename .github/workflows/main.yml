@@ -79,6 +79,13 @@ jobs:
           file dao/cdrdao
           arm-none-linux-gnueabihf-objdump -d dao/cdrdao | head -n 20
 
+      - name: Debug artifact path
+        run: |
+          pwd
+          ls -la
+          ls -la cdrdao-${CDRDAO_VERSION}
+          ls -la cdrdao-${CDRDAO_VERSION}/dao
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
