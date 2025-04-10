@@ -67,9 +67,10 @@ jobs:
           cd cdrdao-${CDRDAO_VERSION}
           ./configure --host=arm-none-linux-gnueabihf CC=arm-none-linux-gnueabihf-gcc CXX=arm-none-linux-gnueabihf-g++ || { echo "Configure failed"; exit 1; }
           make all || { echo "Make failed"; exit 1; }
-          if [ ! -f dao/cdrdao ]; then
-            echo "Error: cdrdao binary not found at dao/cdrdao"
+          if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
+            echo "Error: Required binaries not found"
             ls -la dao/
+            ls -la utils/
             exit 1
           fi
 
@@ -77,24 +78,37 @@ jobs:
         run: |
           cd cdrdao-${CDRDAO_VERSION}
           file dao/cdrdao
+          file utils/toc2cue
           arm-none-linux-gnueabihf-objdump -d dao/cdrdao | head -n 20
-
-      - name: Debug artifact path
-        run: |
-          pwd
-          ls -la
-          ls -la cdrdao-${CDRDAO_VERSION}
-          ls -la cdrdao-${CDRDAO_VERSION}/dao
 
       - name: Prepare artifact
         run: |
-          echo "Copying cdrdao to root directory"
-          cp cdrdao-${CDRDAO_VERSION}/dao/cdrdao ./cdrdao || { echo "Copy failed"; exit 1; }
-          ls -la ./cdrdao
+          echo "Copying cdrdao and toc2cue to root directory"
+          cp cdrdao-${CDRDAO_VERSION}/dao/cdrdao ./cdrdao || { echo "Copy of cdrdao failed"; exit 1; }
+          cp cdrdao-${CDRDAO_VERSION}/utils/toc2cue ./toc2cue || { echo "Copy of toc2cue failed"; exit 1; }
+          ls -la ./cdrdao ./toc2cue
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cdrdao-mister
-          path: ./cdrdao
+          name: cdrdao-mister-binaries
+          path: |
+            ./cdrdao
+            ./toc2cue
           if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Create a unique tag based on date and version
+          TAG="v${CDRDAO_VERSION}-mister-$(date +%Y%m%d)"
+          echo "Creating release with tag: $TAG"
+          
+          # Create the release
+          gh release create "$TAG" \
+            --title "cdrdao ${CDRDAO_VERSION} for MiSTer" \
+            --notes "Built for MiSTer FPGA (ARM). Includes cdrdao and toc2cue binaries." \
+            --draft=false \
+            ./cdrdao ./toc2cue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
