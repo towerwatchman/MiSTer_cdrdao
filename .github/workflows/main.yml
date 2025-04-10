@@ -87,14 +87,15 @@ jobs:
           ls -la cdrdao-${CDRDAO_VERSION}/dao
 
       - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdrdao-mister
+          path: cdrdao-${CDRDAO_VERSION}/dao/cdrdao
+          if-no-files-found: error
+        env:
+          DEBUG_PATH: ${{ github.workspace }}/cdrdao-${CDRDAO_VERSION}/dao/cdrdao
         run: |
-          cd cdrdao-${CDRDAO_VERSION}
-          if [ ! -f dao/cdrdao ]; then
-            echo "Error: cdrdao binary not found"
-            exit 1
-          fi
-          echo "Uploading artifact from $(pwd)/dao/cdrdao"
-          actions-upload-artifact \
-            --name cdrdao-mister \
-            --path dao/cdrdao \
-            --if-no-files-found error
+          echo "Debug: Current directory: $(pwd)"
+          echo "Debug: Checking path: $DEBUG_PATH"
+          ls -la "$DEBUG_PATH" || echo "File not found at $DEBUG_PATH"
+          # The actual upload happens via the 'uses' above
