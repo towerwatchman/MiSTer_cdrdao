@@ -32,7 +32,16 @@ jobs:
           sudo tar -xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt/gcc-10.2-arm --strip-components=1
           rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
 
-      - name: Build cdrdao
+      - name: Build PCCTS Tools for Host
+        run: |
+          wget https://github.com/cdrdao/cdrdao/releases/download/rel_${CDRDAO_VERSION//./_}/cdrdao-${CDRDAO_VERSION}.tar.bz2
+          tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
+          cd cdrdao-${CDRDAO_VERSION}/pccts
+          make -C antlr
+          make -C dlg
+          cd ../..
+
+      - name: Build cdrdao for ARM
         run: |
           # Set up ARM cross-compiler
           export PATH=/opt/gcc-10.2-arm/bin:$PATH
@@ -47,9 +56,7 @@ jobs:
           $CC --version
           $RANLIB --version
 
-          # Download and build cdrdao
-          wget https://github.com/cdrdao/cdrdao/releases/download/rel_${CDRDAO_VERSION//./_}/cdrdao-${CDRDAO_VERSION}.tar.bz2
-          tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
+          # Build cdrdao with pre-built host tools
           cd cdrdao-${CDRDAO_VERSION}
           ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf
           make -j$(nproc)
