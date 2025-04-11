@@ -1,4 +1,4 @@
-name: Build cdrdao for MiSTer
+name: Build cdrdao for MiSTer FPGA
 
 on:
   push:
@@ -7,72 +7,52 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write  # Required for creating releases
+  contents: write
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04  # Matches MiSTer’s glibc 2.31
     env:
       GCC_VERSION: 10.2-2020.11
       CDRDAO_VERSION: 1.2.5
+
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential autoconf automake libtool wget \
-            binfmt-support qemu-user-static \
-            bc bison curl flex gcc git \
-            libelf-dev libgmp3-dev libiberty-dev liblz4-tool libmpc-dev \
-            libncurses-dev libncurses5-dev libpci-dev libssl-dev libudev-dev \
-            lzop openssl qemu-user sharutils u-boot-tools unzip
+          sudo apt-get install -y build-essential git wget unzip zlib1g-dev libncurses5-dev
 
-      - name: Setup QEMU for ARM
+      - name: Install Linaro GCC 10.2
         run: |
-          sudo cp /usr/bin/qemu-arm-static /usr/local/bin/
-          sudo update-binfmts --install qemu-arm /usr/local/bin/qemu-arm-static \
-            --magic "\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00" \
-            --mask "\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff"
-
-      - name: Download and setup ARM toolchain
-        run: |
-          wget -q -c https://developer.arm.com/-/media/Files/downloads/gnu-a/${GCC_VERSION}/binrel/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
-          sudo mkdir -p /opt
-          sudo tar xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/${GCC_VERSION}/binrel/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
+          sudo mkdir -p /opt/gcc-10.2-arm
+          sudo tar -xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt/gcc-10.2-arm --strip-components=1
           rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
-          export PATH=/opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin:$PATH
-          echo "PATH=$PATH" >> $GITHUB_ENV
-          ls -la /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin
-          which arm-none-linux-gnueabihf-gcc || { echo "ARM GCC not found in this step"; exit 1; }
 
-      - name: Verify toolchain
+      - name: Build cdrdao
         run: |
-          echo "Current PATH: $PATH"
-          which arm-none-linux-gnueabihf-gcc || { echo "ARM GCC not found"; exit 1; }
-          which arm-none-linux-gnueabihf-g++ || { echo "ARM G++ not found"; exit 1; }
-          which arm-none-linux-gnueabihf-objdump || { echo "ARM objdump not found"; exit 1; }
-          arm-none-linux-gnueabihf-gcc --version
+          # Set up ARM cross-compiler
+          export PATH=/opt/gcc-10.2-arm/bin:$PATH
+          export CC=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-gcc
+          export CXX=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-g++
+          export LD=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-ld
+          export AR=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-ar
+          export RANLIB=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-ranlib
+          export CFLAGS="-march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16 -fPIC"
+          export LDFLAGS="-L/usr/arm-none-linux-gnueabihf/lib -Wl,--no-as-needed"
+          # Verify toolchain
+          $CC --version
+          $RANLIB --version
 
-      - name: Setup ARM library symlinks
-        run: |
-          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
-          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libc.so.6 /lib/libc.so.6
-          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libpthread.so.0 /lib/libpthread.so.0
-
-      - name: Download and extract cdrdao
-        run: |
-          wget -q https://github.com/cdrdao/cdrdao/releases/download/rel_${CDRDAO_VERSION//./_}/cdrdao-${CDRDAO_VERSION}.tar.bz2
-          tar xf cdrdao-${CDRDAO_VERSION}.tar.bz2
-          rm cdrdao-${CDRDAO_VERSION}.tar.bz2
-
-      - name: Configure and build for ARM (MiSTer)
-        run: |
+          # Download and build cdrdao
+          wget https://github.com/cdrdao/cdrdao/releases/download/rel_${CDRDAO_VERSION//./_}/cdrdao-${CDRDAO_VERSION}.tar.bz2
+          tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
           cd cdrdao-${CDRDAO_VERSION}
-          ./configure --host=arm-none-linux-gnueabihf CC=arm-none-linux-gnueabihf-gcc CXX=arm-none-linux-gnueabihf-g++ || { echo "Configure failed"; exit 1; }
-          make all || { echo "Make failed"; exit 1; }
+          ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf
+          make -j$(nproc)
           if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
             echo "Error: Required binaries not found"
             ls -la dao/
@@ -87,20 +67,18 @@ jobs:
           file utils/toc2cue
           arm-none-linux-gnueabihf-objdump -d dao/cdrdao | head -n 20
 
-      - name: Prepare artifact
+      - name: Package Artifacts
         run: |
-          echo "Copying cdrdao and toc2cue to root directory"
-          cp cdrdao-${CDRDAO_VERSION}/dao/cdrdao ./cdrdao || { echo "Copy of cdrdao failed"; exit 1; }
-          cp cdrdao-${CDRDAO_VERSION}/utils/toc2cue ./toc2cue || { echo "Copy of toc2cue failed"; exit 1; }
-          ls -la ./cdrdao ./toc2cue
+          mkdir -p artifacts
+          cp cdrdao-${CDRDAO_VERSION}/dao/cdrdao artifacts/cdrdao
+          cp cdrdao-${CDRDAO_VERSION}/utils/toc2cue artifacts/toc2cue
+          tar -czf cdrdao-mister.tar.gz -C artifacts .
 
-      - name: Upload artifact
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cdrdao-mister-binaries
-          path: |
-            ./cdrdao
-            ./toc2cue
+          name: cdrdao-mister
+          path: cdrdao-mister.tar.gz
           if-no-files-found: error
 
       - name: Create GitHub Release
@@ -112,6 +90,6 @@ jobs:
             --title "cdrdao ${CDRDAO_VERSION} for MiSTer" \
             --notes "Built for MiSTer FPGA (ARM). Includes cdrdao and toc2cue binaries." \
             --draft=false \
-            ./cdrdao ./toc2cue
+            cdrdao-mister.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
