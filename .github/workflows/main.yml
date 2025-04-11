@@ -67,11 +67,13 @@ jobs:
           # Extract fresh source for ARM build
           tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
           cd cdrdao-${CDRDAO_VERSION}
-          # Inject host-built tools
+          # Inject host-built tools and make them available
           cp ../host-tools/antlr pccts/antlr/
           cp ../host-tools/dlg pccts/dlg/
+          chmod +x pccts/antlr/antlr pccts/dlg/dlg
+          # Configure and build, avoiding pccts rebuild
           ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf
-          make -j$(nproc)
+          make -j$(nproc) SUBDIRS="paranoia trackdb utils dao"
           if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
             echo "Error: Required binaries not found"
             ls -la dao/
