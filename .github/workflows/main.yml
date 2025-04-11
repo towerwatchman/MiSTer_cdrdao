@@ -32,20 +32,16 @@ jobs:
           sudo tar -xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt/gcc-10.2-arm --strip-components=1
           rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
 
-      - name: Prepare cdrdao Source
+      - name: Build PCCTS Tools for Host
         run: |
           wget https://github.com/cdrdao/cdrdao/releases/download/rel_${CDRDAO_VERSION//./_}/cdrdao-${CDRDAO_VERSION}.tar.bz2
           tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
-
-      - name: Build PCCTS Tools for Host
-        run: |
-          cd cdrdao-${CDRDAO_VERSION}
+          mv cdrdao-${CDRDAO_VERSION} cdrdao-host
+          cd cdrdao-host
           ./configure
           make -C pccts
-          # Save host-built tools
           mkdir -p ../host-tools
           cp pccts/antlr/antlr pccts/dlg/dlg ../host-tools/
-          # Verify host tools exist
           if [ ! -f ../host-tools/antlr ] || [ ! -f ../host-tools/dlg ]; then
             echo "Error: antlr or dlg not built"
             ls -la ../host-tools/
@@ -68,10 +64,10 @@ jobs:
           $CC --version
           $RANLIB --version
 
+          # Extract fresh source for ARM build
+          tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
           cd cdrdao-${CDRDAO_VERSION}
-          # Clean everything except pccts to preserve host tools
-          find . -maxdepth 1 -not -name 'pccts' -not -name '.' -not -name '..' -exec rm -rf {} +
-          make -C pccts clean  # Clean pccts but keep antlr and dlg
+          # Inject host-built tools
           cp ../host-tools/antlr pccts/antlr/
           cp ../host-tools/dlg pccts/dlg/
           ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf
