@@ -71,9 +71,12 @@ jobs:
           cp ../host-tools/antlr pccts/antlr/
           cp ../host-tools/dlg pccts/dlg/
           chmod +x pccts/antlr/antlr pccts/dlg/dlg
-          # Configure and build only cdrdao and toc2cue
-          ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf
-          make -j$(nproc) dao/cdrdao utils/toc2cue
+          # Configure with LAME disabled
+          ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf --without-lame
+          # Build dependencies and specific targets
+          make -C trackdb
+          make -C dao cdrdao
+          make -C utils toc2cue
           if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
             echo "Error: Required binaries not found"
             ls -la dao/
