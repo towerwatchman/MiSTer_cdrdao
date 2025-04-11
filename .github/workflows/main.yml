@@ -34,14 +34,18 @@ jobs:
 
       - name: Build PCCTS Tools for Host
         run: |
+          # Download and extract cdrdao source
           wget https://github.com/cdrdao/cdrdao/releases/download/rel_${CDRDAO_VERSION//./_}/cdrdao-${CDRDAO_VERSION}.tar.bz2
           tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
-          cd cdrdao-${CDRDAO_VERSION}
-          ./configure
-          make -C pccts
-          # Save host-built tools
-          mkdir -p ../host-tools
-          cp pccts/antlr/antlr pccts/dlg/dlg ../host-tools/
+          # Copy pccts directory to build separately
+          cp -r cdrdao-${CDRDAO_VERSION}/pccts pccts-host
+          cd pccts-host
+          # Build antlr and dlg for host
+          gcc -o antlr/antlr antlr/*.c -Iantlr
+          gcc -o dlg/dlg dlg/*.c -Idlg
+          # Verify host tools
+          ./antlr/antlr --version || { echo "antlr build failed"; exit 1; }
+          ./dlg/dlg --version || { echo "dlg build failed"; exit 1; }
           cd ..
 
       - name: Build cdrdao for ARM
@@ -60,11 +64,9 @@ jobs:
           $RANLIB --version
 
           cd cdrdao-${CDRDAO_VERSION}
-          # Clean previous host build
-          make clean
-          # Restore host-built PCCTS tools
-          cp ../host-tools/antlr pccts/antlr/
-          cp ../host-tools/dlg pccts/dlg/
+          # Use host-built PCCTS tools
+          cp ../pccts-host/antlr/antlr pccts/antlr/
+          cp ../pccts-host/dlg/dlg pccts/dlg/
           ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf
           make -j$(nproc)
           if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
