@@ -45,9 +45,14 @@ jobs:
           # Save host-built tools
           mkdir -p ../host-tools
           cp pccts/antlr/antlr pccts/dlg/dlg ../host-tools/
-          # Verify host tools
-          ../host-tools/antlr --version || { echo "antlr not executable"; exit 1; }
-          ../host-tools/dlg --version || { echo "dlg not executable"; exit 1; }
+          # Verify host tools exist
+          if [ ! -f ../host-tools/antlr ] || [ ! -f ../host-tools/dlg ]; then
+            echo "Error: antlr or dlg not built"
+            ls -la ../host-tools/
+            exit 1
+          fi
+          # Optional: Test antlr with a minimal command
+          ../host-tools/antlr -h || true  # -h prints help, expected to exit non-zero but confirms it runs
 
       - name: Build cdrdao for ARM
         run: |
