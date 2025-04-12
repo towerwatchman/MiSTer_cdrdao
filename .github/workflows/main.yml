@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # Match MiSTer’s glibc 2.31
+    runs-on: ubuntu-latest  # Match working script
     env:
       GCC_VERSION: 10.2-2020.11
       CDRDAO_VERSION: 1.2.5
@@ -30,12 +30,14 @@ jobs:
             libncurses-dev libncurses5-dev libpci-dev libssl-dev libudev-dev \
             lzop openssl qemu-user sharutils u-boot-tools
 
-      - name: Setup QEMU for ARM
+      - name: Verify QEMU Setup
         run: |
-          sudo cp /usr/bin/qemu-arm-static /usr/local/bin/
-          sudo update-binfmts --install qemu-arm /usr/local/bin/qemu-arm-static \
-            --magic "\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00" \
-            --mask "\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff"
+          # Ensure qemu-arm-static is available
+          if [ ! -f /usr/bin/qemu-arm-static ]; then
+            echo "Error: qemu-arm-static not found"
+            exit 1
+          fi
+          qemu-arm-static --version
 
       - name: Install Linaro GCC 10.2
         run: |
@@ -58,7 +60,7 @@ jobs:
           wget https://github.com/cdrdao/cdrdao/releases/download/${CDRDAO_RELEASE}/cdrdao-${CDRDAO_VERSION}.tar.bz2
           tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
           cd cdrdao-${CDRDAO_VERSION}
-          ./configure --host=arm-none-linux-gnueabihf --without-lame
+          ./configure --host=arm-none-linux-gnueabihf --without-lame --without-ao --without-mp3 --without-ogg
           make -j$(nproc)
           if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
             echo "Error: Required binaries not found"
