@@ -74,6 +74,7 @@ jobs:
           # Configure with LAME disabled
           ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf --without-lame
           # Build dependencies and specific targets
+          make -C paranoia
           make -C trackdb
           make -C dao cdrdao
           make -C utils toc2cue
