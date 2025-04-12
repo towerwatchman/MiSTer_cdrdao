@@ -118,17 +118,17 @@ jobs:
           # Zip the JSON file
           zip mister_cdrdao_db.json.zip mister_cdrdao_db.json
 
-      - name: Create db-output Directory and Move ZIP
+      - name: Create db Directory and Move ZIP
         run: |
-          mkdir -p db-output
-          mv mister_cdrdao_db.json.zip db-output/
+          mkdir -p db
+          mv mister_cdrdao_db.json.zip db/
 
       - name: Commit and Push Changes
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add Scripts/.config/mister-cdrdao/*
-          git add db-output/mister_cdrdao_db.json.zip
+          git add db/mister_cdrdao_db.json.zip
           git commit -m "Update cdrdao, toc2cue, and mister_cdrdao_db.json.zip for $GITHUB_SHA" || echo "No changes to commit"
           git push origin main
         env:
