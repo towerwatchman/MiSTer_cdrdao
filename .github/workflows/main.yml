@@ -39,10 +39,13 @@ jobs:
 
       - name: Install Linaro GCC 10.2
         run: |
-          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/${GCC_VERSION}/binrel/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-eqz.tar.xz
+          # Try primary URL
+          wget -q --timeout=10 -c https://releases.linaro.org/components/toolchain/binaries/10.2-2020.11/arm-linux-gnueabihf/gcc-linaro-10.2.1-2020.11-x86_64_arm-linux-gnueabihf.tar.xz || \
+          # Fallback to alternative URL
+          wget -q -c https://archive.org/download/arm-toolchains/gcc-linaro-10.2.1-2020.11-x86_64_arm-linux-gnueabihf.tar.xz
           sudo mkdir -p /opt/gcc-10.2-arm
-          sudo tar -xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt/gcc-10.2-arm --strip-components=1
-          rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
+          sudo tar -xf gcc-linaro-10.2.1-2020.11-x86_64_arm-linux-gnueabihf.tar.xz -C /opt/gcc-10.2-arm --strip-components=1
+          rm gcc-linaro-10.2.1-2020.11-x86_64_arm-linux-gnueabihf.tar.xz
 
       - name: Setup ARM Library Symlinks
         run: |
