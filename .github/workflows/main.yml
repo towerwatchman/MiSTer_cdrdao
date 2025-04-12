@@ -11,10 +11,11 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # Matches MiSTer’s glibc 2.31
+    runs-on: ubuntu-latest
     env:
       GCC_VERSION: 10.2-2020.11
       CDRDAO_VERSION: 1.2.5
+      CDRDAO_RELEASE: rel_1_2_5
 
     steps:
       - name: Checkout Repository
@@ -23,61 +24,40 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git wget unzip zlib1g-dev libncurses5-dev
+          sudo apt-get install -y build-essential git wget unzip \
+            binfmt-support qemu-user-static autoconf bc bison curl flex gcc \
+            libelf-dev libgmp3-dev libiberty-dev liblz4-tool libmpc-dev \
+            libncurses-dev libncurses5-dev libpci-dev libssl-dev libudev-dev \
+            lzop openssl qemu-user sharutils u-boot-tools
+
+      - name: Setup QEMU for ARM
+        run: |
+          sudo cp /usr/bin/qemu-arm-static /usr/local/bin/
+          sudo update-binfmts --install qemu-arm /usr/local/bin/qemu-arm-static \
+            --magic "\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00" \
+            --mask "\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff"
 
       - name: Install Linaro GCC 10.2
         run: |
-          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/${GCC_VERSION}/binrel/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/${GCC_VERSION}/binrel/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-eqz.tar.xz
           sudo mkdir -p /opt/gcc-10.2-arm
           sudo tar -xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt/gcc-10.2-arm --strip-components=1
           rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
 
-      - name: Build PCCTS Tools for Host
+      - name: Setup ARM Library Symlinks
         run: |
-          wget https://github.com/cdrdao/cdrdao/releases/download/rel_${CDRDAO_VERSION//./_}/cdrdao-${CDRDAO_VERSION}.tar.bz2
-          tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
-          mv cdrdao-${CDRDAO_VERSION} cdrdao-host
-          cd cdrdao-host
-          ./configure
-          make -C pccts
-          mkdir -p ../host-tools
-          cp pccts/antlr/antlr pccts/dlg/dlg ../host-tools/
-          if [ ! -f ../host-tools/antlr ] || [ ! -f ../host-tools/dlg ]; then
-            echo "Error: antlr or dlg not built"
-            ls -la ../host-tools/
-            exit 1
-          fi
-          file ../host-tools/antlr  # Should show x86_64
+          sudo ln -sf /opt/gcc-10.2-arm/arm-none-linux-gnueabihf/libc/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
+          sudo ln -sf /opt/gcc-10.2-arm/arm-none-linux-gnueabihf/libc/lib/libc.so.6 /lib/libc.so.6
+          sudo ln -sf /opt/gcc-10.2-arm/arm-none-linux-gnueabihf/libc/lib/libpthread.so.0 /lib/libpthread.so.0
 
-      - name: Build cdrdao for ARM
+      - name: Build cdrdao
         run: |
-          # Set up ARM cross-compiler
           export PATH=/opt/gcc-10.2-arm/bin:$PATH
-          export CC=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-gcc
-          export CXX=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-g++
-          export LD=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-ld
-          export AR=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-ar
-          export RANLIB=/opt/gcc-10.2-arm/bin/arm-none-linux-gnueabihf-ranlib
-          export CFLAGS="-march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16 -fPIC"
-          export LDFLAGS="-L/usr/arm-none-linux-gnueabihf/lib -Wl,--no-as-needed"
-          # Verify toolchain
-          $CC --version
-          $RANLIB --version
-
-          # Extract fresh source for ARM build
+          wget https://github.com/cdrdao/cdrdao/releases/download/${CDRDAO_RELEASE}/cdrdao-${CDRDAO_VERSION}.tar.bz2
           tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
           cd cdrdao-${CDRDAO_VERSION}
-          # Inject host-built tools
-          cp ../host-tools/antlr pccts/antlr/
-          cp ../host-tools/dlg pccts/dlg/
-          chmod +x pccts/antlr/antlr pccts/dlg/dlg
-          # Configure with LAME disabled
-          ./configure --host=arm-none-linux-gnueabihf --prefix=/usr/arm-none-linux-gnueabihf --without-lame
-          # Build dependencies and specific targets
-          make -C paranoia
-          make -C trackdb
-          make -C dao cdrdao
-          make -C utils toc2cue
+          ./configure --host=arm-none-linux-gnueabihf
+          make -j$(nproc)
           if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
             echo "Error: Required binaries not found"
             ls -la dao/
