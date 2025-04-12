@@ -89,15 +89,18 @@ jobs:
           path: cdrdao-mister.tar.gz
           if-no-files-found: error
 
-      - name: Create GitHub Release
+      - name: Create or Update GitHub Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           TAG="v${CDRDAO_VERSION}-mister-$(date +%Y%m%d)"
-          echo "Creating release with tag: $TAG"
+          echo "Attempting to create or update release with tag: $TAG"
+          # Try to create a new release
           gh release create "$TAG" \
             --title "cdrdao ${CDRDAO_VERSION} for MiSTer" \
             --notes "Built for MiSTer FPGA (ARM). Includes cdrdao and toc2cue binaries." \
             --draft=false \
-            cdrdao-mister.tar.gz
+            cdrdao-mister.tar.gz || \
+          # If creation fails (e.g., tag exists), update the existing release
+          gh release upload "$TAG" cdrdao-mister.tar.gz --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
