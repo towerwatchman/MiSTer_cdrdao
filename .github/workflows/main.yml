@@ -14,7 +14,6 @@ jobs:
     env:
       CDRDAO_VERSION: 1.2.5
       CDRDAO_RELEASE: rel_1_2_5
-      BINMERGE_VERSION: 1.0.3
       GCC_VERSION: 10.2-2020.11
 
     steps:
@@ -43,13 +42,6 @@ jobs:
           sudo mkdir -p /opt
           sudo tar xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt
           rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
-          export PATH=/opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin:$PATH
-          if [ ! -f /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-gcc ]; then
-            echo "Error: Toolchain binary not found"
-            ls -la /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin/
-            exit 1
-          fi
-          arm-none-linux-gnueabihf-gcc --version
 
       - name: Setup ARM Library Symlinks
         run: |
@@ -57,44 +49,25 @@ jobs:
           sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libc.so.6 /lib/libc.so.6
           sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libpthread.so.0 /lib/libpthread.so.0
 
-      - name: Build CDRDAO and Binmerge
+      - name: Build CDRDAO
         run: |
           export PATH=/opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin:$PATH
           STARTDIR=$PWD
-          # Build binmerge
-          wget -q https://github.com/putnam/binmerge/releases/download/${BINMERGE_VERSION}/binmerge-${BINMERGE_VERSION}.zip
-          unzip binmerge-${BINMERGE_VERSION}.zip
-          mkdir -p $STARTDIR/Scripts/.config/mister-cdrdao
-          mv -v binmerge-${BINMERGE_VERSION}/binmerge $STARTDIR/Scripts/.config/mister-cdrdao
-          rm -rf binmerge-${BINMERGE_VERSION} binmerge-${BINMERGE_VERSION}.zip
-          # Build cdrdao
           wget -q https://github.com/cdrdao/cdrdao/releases/download/${CDRDAO_RELEASE}/cdrdao-${CDRDAO_VERSION}.tar.bz2
           tar xf cdrdao-${CDRDAO_VERSION}.tar.bz2
           cd cdrdao-${CDRDAO_VERSION}
           ./configure --host=arm-none-linux-gnueabihf
           make -j$(nproc)
+          mkdir -p $STARTDIR/Scripts/.config/mister-cdrdao
           mv -v ./dao/cdrdao ./utils/toc2cue $STARTDIR/Scripts/.config/mister-cdrdao
           cd $STARTDIR
           rm -rf cdrdao-${CDRDAO_VERSION} cdrdao-${CDRDAO_VERSION}.tar.bz2
-
-      - name: Download Redump DAT Files
-        run: |
-          STARTDIR=$PWD
-          for target in PSX:psx Saturn:ss MegaCD:mcd TGFX16-CD:pce NeoGeo-CD:ngcd; do
-            system=$(echo $target | awk -F: '{print $1}')
-            url=$(echo $target | awk -F: '{print $2}')
-            echo "==> Downloading ${system} dat file..."
-            wget -q http://redump.org/datfile/${url}/ -O ${system}.zip
-            unzip -p ${system}.zip > $STARTDIR/Scripts/.config/mister-cdrdao/${system}.dat
-            rm ${system}.zip
-          done
 
       - name: Verify Build
         run: |
           cd Scripts/.config/mister-cdrdao
           file cdrdao
           file toc2cue
-          file binmerge
           ldd cdrdao || true
           strings cdrdao | grep -i gcc || true
 
@@ -103,8 +76,6 @@ jobs:
           mkdir -p artifacts
           cp Scripts/.config/mister-cdrdao/cdrdao artifacts/
           cp Scripts/.config/mister-cdrdao/toc2cue artifacts/
-          cp Scripts/.config/mister-cdrdao/binmerge artifacts/
-          cp Scripts/.config/mister-cdrdao/*.dat artifacts/
           tar -czf cdrdao-mister.tar.gz -C artifacts .
 
       - name: Upload Build Artifact
@@ -127,7 +98,7 @@ jobs:
           echo "Attempting to create or update release with tag: $TAG"
           gh release create "$TAG" \
             --title "cdrdao ${CDRDAO_VERSION} for MiSTer" \
-            --notes "Built for MiSTer FPGA (ARM). Includes cdrdao, toc2cue, binmerge, and Redump DAT files." \
+            --notes "Built for MiSTer FPGA (ARM). Includes cdrdao and toc2cue binaries." \
             --draft=false \
             cdrdao-mister.tar.gz || \
           gh release upload "$TAG" cdrdao-mister.tar.gz --clobber
