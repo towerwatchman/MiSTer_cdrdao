@@ -42,6 +42,8 @@ jobs:
           sudo mkdir -p /opt
           sudo tar xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt
           rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
+          export PATH=/opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin:$PATH
+          arm-none-linux-gnueabihf-gcc --version
 
       - name: Setup ARM Library Symlinks
         run: |
@@ -78,18 +80,66 @@ jobs:
           cp Scripts/.config/mister-cdrdao/toc2cue artifacts/
           tar -czf cdrdao-mister.tar.gz -C artifacts .
 
+      - name: Generate Database JSON
+        run: |
+          # Create mister_cdrdao_db.json
+          cat > mister_cdrdao_db.json << EOL
+          {
+            "db_id": "mister_cdrdao",
+            "timestamp": $(date +%s),
+            "files": {
+              "_Utility/cdrdao": {
+                "hash": "$(md5sum Scripts/.config/mister-cdrdao/cdrdao | cut -d' ' -f1)",
+                "size": $(wc -c < Scripts/.config/mister-cdrdao/cdrdao),
+                "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/cdrdao",
+                "tags": ["cdrdao", "utility"],
+                "overwrite": true,
+                "reboot": false
+              },
+              "_Utility/toc2cue": {
+                "hash": "$(md5sum Scripts/.config/mister-cdrdao/toc2cue | cut -d' ' -f1)",
+                "size": $(wc -c < Scripts/.config/mister-cdrdao/toc2cue),
+                "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/toc2cue",
+                "tags": ["cdrdao", "utility"],
+                "overwrite": true,
+                "reboot": false
+              }
+            },
+            "folders": {
+              "_Utility/": {
+                "tags": ["cdrdao"]
+              }
+            },
+            "default_options": {
+              "filter": "cdrdao"
+            }
+          }
+          EOL
+          # Zip the JSON file
+          zip mister_cdrdao_db.json.zip mister_cdrdao_db.json
+
+      - name: Create db-output Directory and Move ZIP
+        run: |
+          mkdir -p db-output
+          mv mister_cdrdao_db.json.zip db-output/
+
+      - name: Commit and Push Changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Scripts/.config/mister-cdrdao/*
+          git add db-output/mister_cdrdao_db.json.zip
+          git commit -m "Update cdrdao, toc2cue, and mister_cdrdao_db.json.zip for $GITHUB_SHA" || echo "No changes to commit"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: cdrdao-mister
           path: cdrdao-mister.tar.gz
           if-no-files-found: error
-
-      - name: Commit and Push Changes
-        uses: devops-infra/action-commit-push@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          commit_message: Updated Scripts directory
 
       - name: Create or Update GitHub Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
