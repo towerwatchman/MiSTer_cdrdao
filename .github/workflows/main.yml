@@ -1,89 +1,91 @@
-name: Build cdrdao for MiSTer FPGA
+name: Build CDRDAO for MiSTer
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
-permissions:
-  contents: write
+permissions: write-all
 
 jobs:
-  build:
-    runs-on: ubuntu-latest  # Match working script
+  build_mister_cdrdao:
+    runs-on: ubuntu-latest
+
     env:
-      GCC_VERSION: 10.2-2020.11
       CDRDAO_VERSION: 1.2.5
       CDRDAO_RELEASE: rel_1_2_5
+      BINMERGE_VERSION: 1.0.3
+      GCC_VERSION: 10.2-2020.11
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git wget unzip \
-            binfmt-support qemu-user-static autoconf bc bison curl flex gcc \
-            libelf-dev libgmp3-dev libiberty-dev liblz4-tool libmpc-dev \
-            libncurses-dev libncurses5-dev libpci-dev libssl-dev libudev-dev \
-            lzop openssl qemu-user sharutils u-boot-tools
+          sudo apt-get install -y -qq \
+            binfmt-support qemu-user-static autoconf bc bison build-essential curl \
+            flex gcc git libelf-dev libgmp3-dev libiberty-dev liblz4-tool libmpc-dev \
+            libncurses-dev libncurses5-dev libpci-dev libssl-dev libudev-dev lzop \
+            openssl qemu-user sharutils u-boot-tools unzip
 
-      - name: Verify QEMU Setup
+      - name: Setup QEMU for ARM
         run: |
-          # Ensure qemu-arm-static is available
-          if [ ! -f /usr/bin/qemu-arm-static ]; then
-            echo "Error: qemu-arm-static not found"
-            exit 1
-          fi
-          qemu-arm-static --version
+          sudo cp /usr/bin/qemu-arm-static /usr/local/bin/
+          sudo update-binfmts --install qemu-arm /usr/local/bin/qemu-arm-static \
+            --magic "\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00" \
+            --mask "\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff" || true
 
       - name: Install Linaro GCC 10.2
         run: |
-          wget -q --timeout=10 -c https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz || \
-          wget -q -c https://snapshots.linaro.org/arm/arm-none-linux-gnueabihf/10.2-2020.11/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz
-          sudo mkdir -p /opt/gcc-10.2-arm
-          sudo tar -xf gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt/gcc-10.2-arm --strip-components=1
-          rm gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz
+          wget -q -c https://developer.arm.com/-/media/Files/downloads/gnu-a/${GCC_VERSION}/binrel/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
+          sudo tar xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt
+          rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
           arm-none-linux-gnueabihf-gcc --version
 
       - name: Setup ARM Library Symlinks
         run: |
-          sudo ln -sf /opt/gcc-10.2-arm/arm-none-linux-gnueabihf/libc/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
-          sudo ln -sf /opt/gcc-10.2-arm/arm-none-linux-gnueabihf/libc/lib/libc.so.6 /lib/libc.so.6
-          sudo ln -sf /opt/gcc-10.2-arm/arm-none-linux-gnueabihf/libc/lib/libpthread.so.0 /lib/libpthread.so.0
+          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
+          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libc.so.6 /lib/libc.so.6
+          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libpthread.so.0 /lib/libpthread.so.0
 
-      - name: Build cdrdao
+      - name: Build CDRDAO and Binmerge
         run: |
-          export PATH=/opt/gcc-10.2-arm/bin:$PATH
-          wget https://github.com/cdrdao/cdrdao/releases/download/${CDRDAO_RELEASE}/cdrdao-${CDRDAO_VERSION}.tar.bz2
-          tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
+          export PATH=/opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin:$PATH
+          STARTDIR=$PWD
+          # Build binmerge
+          wget -q https://github.com/putnam/binmerge/releases/download/${BINMERGE_VERSION}/binmerge-${BINMERGE_VERSION}.zip
+          unzip binmerge-${BINMERGE_VERSION}.zip
+          mkdir -p $STARTDIR/Scripts/.config/mister-cdrdao
+          mv -v binmerge-${BINMERGE_VERSION}/binmerge $STARTDIR/Scripts/.config/mister-cdrdao
+          rm -rf binmerge-${BINMERGE_VERSION} binmerge-${BINMERGE_VERSION}.zip
+          # Build cdrdao
+          wget -q https://github.com/cdrdao/cdrdao/releases/download/${CDRDAO_RELEASE}/cdrdao-${CDRDAO_VERSION}.tar.bz2
+          tar xf cdrdao-${CDRDAO_VERSION}.tar.bz2
           cd cdrdao-${CDRDAO_VERSION}
-          ./configure --host=arm-none-linux-gnueabihf --without-lame --without-ao --without-mp3 --without-ogg
+          ./configure --host=arm-none-linux-gnueabihf
           make -j$(nproc)
-          if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
-            echo "Error: Required binaries not found"
-            ls -la dao/
-            ls -la utils/
-            exit 1
-          fi
-          ldd dao/cdrdao || true
-          ldd utils/toc2cue || true
+          mv -v ./dao/cdrdao ./utils/toc2cue $STARTDIR/Scripts/.config/mister-cdrdao
+          cd $STARTDIR
+          rm -rf cdrdao-${CDRDAO_VERSION} cdrdao-${CDRDAO_VERSION}.tar.bz2
 
-      - name: Verify build
+      - name: Verify Build
         run: |
-          cd cdrdao-${CDRDAO_VERSION}
-          file dao/cdrdao
-          file utils/toc2cue
-          arm-none-linux-gnueabihf-objdump -d dao/cdrdao | head -n 20
-          strings dao/cdrdao | grep -i gcc || true
+          cd Scripts/.config/mister-cdrdao
+          file cdrdao
+          file toc2cue
+          file binmerge
+          ldd cdrdao || true
+          strings cdrdao | grep -i gcc || true
 
       - name: Package Artifacts
         run: |
           mkdir -p artifacts
-          cp cdrdao-${CDRDAO_VERSION}/dao/cdrdao artifacts/cdrdao
-          cp cdrdao-${CDRDAO_VERSION}/utils/toc2cue artifacts/toc2cue
+          cp Scripts/.config/mister-cdrdao/cdrdao artifacts/
+          cp Scripts/.config/mister-cdrdao/toc2cue artifacts/
+          cp Scripts/.config/mister-cdrdao/binmerge artifacts/
+          cp Scripts/.config/mister-cdrdao/*.dat artifacts/
           tar -czf cdrdao-mister.tar.gz -C artifacts .
 
       - name: Upload Build Artifact
@@ -93,6 +95,12 @@ jobs:
           path: cdrdao-mister.tar.gz
           if-no-files-found: error
 
+      - name: Commit and Push Changes
+        uses: devops-infra/action-commit-push@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          commit_message: Updated Scripts directory
+
       - name: Create or Update GitHub Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
@@ -100,7 +108,7 @@ jobs:
           echo "Attempting to create or update release with tag: $TAG"
           gh release create "$TAG" \
             --title "cdrdao ${CDRDAO_VERSION} for MiSTer" \
-            --notes "Built for MiSTer FPGA (ARM). Includes cdrdao and toc2cue binaries." \
+            --notes "Built for MiSTer FPGA (ARM). Includes cdrdao, toc2cue, binmerge, and Redump DAT files." \
             --draft=false \
             cdrdao-mister.tar.gz || \
           gh release upload "$TAG" cdrdao-mister.tar.gz --clobber
