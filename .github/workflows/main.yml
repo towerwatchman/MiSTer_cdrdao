@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04  # Match MiSTer’s glibc 2.31
     env:
       GCC_VERSION: 10.2-2020.11
       CDRDAO_VERSION: 1.2.5
@@ -39,13 +39,12 @@ jobs:
 
       - name: Install Linaro GCC 10.2
         run: |
-          # Try primary URL
           wget -q --timeout=10 -c https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz || \
-          # Fallback to alternative URL
           wget -q -c https://snapshots.linaro.org/arm/arm-none-linux-gnueabihf/10.2-2020.11/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz
           sudo mkdir -p /opt/gcc-10.2-arm
           sudo tar -xf gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt/gcc-10.2-arm --strip-components=1
           rm gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz
+          arm-none-linux-gnueabihf-gcc --version
 
       - name: Setup ARM Library Symlinks
         run: |
@@ -59,7 +58,7 @@ jobs:
           wget https://github.com/cdrdao/cdrdao/releases/download/${CDRDAO_RELEASE}/cdrdao-${CDRDAO_VERSION}.tar.bz2
           tar -xjf cdrdao-${CDRDAO_VERSION}.tar.bz2
           cd cdrdao-${CDRDAO_VERSION}
-          ./configure --host=arm-none-linux-gnueabihf
+          ./configure --host=arm-none-linux-gnueabihf --without-lame
           make -j$(nproc)
           if [ ! -f dao/cdrdao ] || [ ! -f utils/toc2cue ]; then
             echo "Error: Required binaries not found"
@@ -67,6 +66,8 @@ jobs:
             ls -la utils/
             exit 1
           fi
+          ldd dao/cdrdao || true
+          ldd utils/toc2cue || true
 
       - name: Verify build
         run: |
@@ -74,6 +75,7 @@ jobs:
           file dao/cdrdao
           file utils/toc2cue
           arm-none-linux-gnueabihf-objdump -d dao/cdrdao | head -n 20
+          strings dao/cdrdao | grep -i gcc || true
 
       - name: Package Artifacts
         run: |
@@ -94,13 +96,11 @@ jobs:
         run: |
           TAG="v${CDRDAO_VERSION}-mister-$(date +%Y%m%d)"
           echo "Attempting to create or update release with tag: $TAG"
-          # Try to create a new release
           gh release create "$TAG" \
             --title "cdrdao ${CDRDAO_VERSION} for MiSTer" \
             --notes "Built for MiSTer FPGA (ARM). Includes cdrdao and toc2cue binaries." \
             --draft=false \
             cdrdao-mister.tar.gz || \
-          # If creation fails (e.g., tag exists), update the existing release
           gh release upload "$TAG" cdrdao-mister.tar.gz --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
