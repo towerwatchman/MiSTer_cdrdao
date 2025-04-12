@@ -6,7 +6,7 @@ cdrdao compiled for MiSTer FPGA.
 Add this to `/media/fat/downloader.ini`:
 ```ini
 [mister_cdrdao]  
-db_url = 'https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/db/db-output/mister_cdrdao_db.json.zip'
+db_url = 'https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/db/mister_cdrdao_db.json.zip'
 ```
 ## Notes
 
