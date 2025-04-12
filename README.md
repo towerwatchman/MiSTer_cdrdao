@@ -1,7 +1,7 @@
 # MiSTer_cdrdao
 cdrdao compiled for MiSTer FPGA.
 
-##Integration
+## Integration
 
 Add this to `/media/fat/downloader.ini`:
 ```ini
