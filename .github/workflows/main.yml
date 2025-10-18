@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      CDRDAO_VERSION: 1.2.5
-      CDRDAO_RELEASE: rel_1_2_5
+      CDRDAO_VERSION: 1.2.6
+      CDRDAO_RELEASE: rel_1_2_6
       GCC_VERSION: 10.2-2020.11
 
     steps:
@@ -88,7 +88,7 @@ jobs:
             "db_id": "mister_cdrdao",
             "timestamp": $(date +%s),
             "files": {
-              "_Utility/cdrdao": {
+              "/media/fat/linux/cdrdao": {
                 "hash": "$(md5sum Scripts/.config/mister-cdrdao/cdrdao | cut -d' ' -f1)",
                 "size": $(wc -c < Scripts/.config/mister-cdrdao/cdrdao),
                 "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/cdrdao",
@@ -96,7 +96,7 @@ jobs:
                 "overwrite": true,
                 "reboot": false
               },
-              "_Utility/toc2cue": {
+              "/media/fat/linux/toc2cue": {
                 "hash": "$(md5sum Scripts/.config/mister-cdrdao/toc2cue | cut -d' ' -f1)",
                 "size": $(wc -c < Scripts/.config/mister-cdrdao/toc2cue),
                 "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/toc2cue",
@@ -106,7 +106,7 @@ jobs:
               }
             },
             "folders": {
-              "_Utility/": {
+              "/media/fat/linux": {
                 "tags": ["cdrdao"]
               }
             },
