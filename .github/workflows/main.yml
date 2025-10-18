@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      CDRDAO_VERSION: 1.2.6
-      CDRDAO_RELEASE: rel_1_2_6
+      CDRDAO_VERSION: 1.2.5
+      CDRDAO_RELEASE: rel_1_2_5
       GCC_VERSION: 10.2-2020.11
 
     steps:
