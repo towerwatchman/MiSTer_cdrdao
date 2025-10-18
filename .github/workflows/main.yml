@@ -88,7 +88,7 @@ jobs:
             "db_id": "mister_cdrdao",
             "timestamp": $(date +%s),
             "files": {
-              "linux/cdrdao": {
+              "_Utility/cdrdao": {
                 "hash": "$(md5sum Scripts/.config/mister-cdrdao/cdrdao | cut -d' ' -f1)",
                 "size": $(wc -c < Scripts/.config/mister-cdrdao/cdrdao),
                 "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/cdrdao",
@@ -96,7 +96,7 @@ jobs:
                 "overwrite": true,
                 "reboot": false
               },
-              "linux/toc2cue": {
+              "_Utility/toc2cue": {
                 "hash": "$(md5sum Scripts/.config/mister-cdrdao/toc2cue | cut -d' ' -f1)",
                 "size": $(wc -c < Scripts/.config/mister-cdrdao/toc2cue),
                 "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/toc2cue",
@@ -106,7 +106,7 @@ jobs:
               }
             },
             "folders": {
-              "linux": {
+              "_Utility": {
                 "tags": ["cdrdao"]
               }
             },
