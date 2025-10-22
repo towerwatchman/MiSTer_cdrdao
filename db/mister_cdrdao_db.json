@@ -1,6 +1,6 @@
 {
   "db_id": "mister_cdrdao",
-  "timestamp": 1761168312,
+  "timestamp": 1761168910,
   "files": {
     "_Utility/cdrdao": {
       "hash": "3dad8a32298b9aa7a8b2e35a753b8889",
@@ -19,8 +19,8 @@
       "reboot": false
     },
     "Scripts/install_cdrdao.sh": {
-      "hash": "5e639caeb87575d5909d7c8b21e5c35a",
-      "size": 936,
+      "hash": "feef6d9d5ad104afb66612540f05251a",
+      "size": 916,
       "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/install_cdrdao.sh",
       "tags": ["cdrdao", "utility", "script"],
       "overwrite": true,
