@@ -1,20 +1,28 @@
 {
   "db_id": "mister_cdrdao",
-  "timestamp": 1761159742,
+  "timestamp": $(date +%s),
   "files": {
     "_Utility/cdrdao": {
-      "hash": "3dad8a32298b9aa7a8b2e35a753b8889",
-      "size": 5100244,
+      "hash": "$(md5sum Scripts/.config/mister-cdrdao/cdrdao | cut -d' ' -f1)",
+      "size": $(wc -c < Scripts/.config/mister-cdrdao/cdrdao),
       "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/cdrdao",
       "tags": ["cdrdao", "utility"],
       "overwrite": true,
       "reboot": false
     },
     "_Utility/toc2cue": {
-      "hash": "90695ab4cf45754dc3ab787d0e714cd7",
-      "size": 2360456,
+      "hash": "$(md5sum Scripts/.config/mister-cdrdao/toc2cue | cut -d' ' -f1)",
+      "size": $(wc -c < Scripts/.config/mister-cdrdao/toc2cue),
       "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/toc2cue",
       "tags": ["cdrdao", "utility"],
+      "overwrite": true,
+      "reboot": false
+    },
+    "Scripts/install_cdrdao.sh": {
+      "hash": "$(md5sum Scripts/install_cdrdao.sh | cut -d' ' -f1)",
+      "size": $(wc -c < Scripts/install_cdrdao.sh),
+      "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/install_cdrdao.sh",
+      "tags": ["cdrdao", "utility", "script"],
       "overwrite": true,
       "reboot": false
     }
@@ -22,6 +30,9 @@
   "folders": {
     "_Utility": {
       "tags": ["cdrdao"]
+    },
+    "Scripts": {
+      "tags": ["cdrdao", "script"]
     }
   },
   "default_options": {
