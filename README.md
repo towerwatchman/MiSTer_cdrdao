@@ -8,4 +8,7 @@ Add this to your downloader.ini file:  `/media/fat/downloader.ini`:
 [mister_cdrdao]  
 db_url = https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/db/mister_cdrdao_db.json
 ```
+
+Once all files are downloaded, run install_cdrdao from the scripts menu.
+
 ## Notes
