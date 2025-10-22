@@ -1,0 +1,30 @@
+{
+  "db_id": "mister_cdrdao",
+  "timestamp": 1761159171,
+  "files": {
+    "_Utility/cdrdao": {
+      "hash": "3dad8a32298b9aa7a8b2e35a753b8889",
+      "size": 5100244,
+      "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/cdrdao",
+      "tags": ["cdrdao", "utility"],
+      "overwrite": true,
+      "reboot": false
+    },
+    "_Utility/toc2cue": {
+      "hash": "90695ab4cf45754dc3ab787d0e714cd7",
+      "size": 2360456,
+      "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/toc2cue",
+      "tags": ["cdrdao", "utility"],
+      "overwrite": true,
+      "reboot": false
+    }
+  },
+  "folders": {
+    "_Utility": {
+      "tags": ["cdrdao"]
+    }
+  },
+  "default_options": {
+    "filter": "cdrdao"
+  }
+}
