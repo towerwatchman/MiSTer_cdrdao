@@ -65,6 +65,41 @@ jobs:
           cd $STARTDIR
           rm -rf cdrdao-${CDRDAO_VERSION} cdrdao-${CDRDAO_VERSION}.tar.bz2
 
+      - name: Create Install Script
+        run: |
+          mkdir -p Scripts
+          cat > Scripts/install_cdrdao.sh << 'EOL'
+          #!/bin/sh
+          # Installs cdrdao and toc2cue to /usr/bin/ on MiSTer
+          # Run this script manually from the Scripts directory
+
+          echo "Installing cdrdao and toc2cue to /usr/bin/"
+
+          # Check if running on MiSTer (basic check for /media/fat)
+          if [ ! -d "/media/fat" ]; then
+              echo "Error: This script is intended to run on a MiSTer system."
+              exit 1
+          fi
+
+          # Check if the binaries exist in the current directory
+          if [ ! -f "./.config/mister-cdrdao/cdrdao" ] || [ ! -f "./.config/mister-cdrdao/toc2cue" ]; then
+              echo "Error: cdrdao or toc2cue not found in ./.config/mister-cdrdao/"
+              exit 1
+          fi
+
+          # Copy binaries to /usr/bin/ with executable permissions
+          echo "Copying cdrdao to /usr/bin/"
+          cp ./.config/mister-cdrdao/cdrdao /usr/bin/cdrdao
+          chmod +x /usr/bin/cdrdao
+
+          echo "Copying toc2cue to /usr/bin/"
+          cp ./.config/mister-cdrdao/toc2cue /usr/bin/toc2cue
+          chmod +x /usr/bin/toc2cue
+
+          echo "Installation complete! cdrdao and toc2cue are now in /usr/bin/"
+          EOL
+          chmod +x Scripts/install_cdrdao.sh
+
       - name: Verify Build
         run: |
           cd Scripts/.config/mister-cdrdao
@@ -78,29 +113,37 @@ jobs:
           mkdir -p artifacts
           cp Scripts/.config/mister-cdrdao/cdrdao artifacts/
           cp Scripts/.config/mister-cdrdao/toc2cue artifacts/
+          cp Scripts/install_cdrdao.sh artifacts/
           tar -czf cdrdao-mister.tar.gz -C artifacts .
 
       - name: Generate Database JSON
         run: |
-          # Create mister_cdrdao_db.json
           cat > mister_cdrdao_db.json << EOL
           {
             "db_id": "mister_cdrdao",
-            "timestamp": $(date +%s),
+            "timestamp": \$(date +%s),
             "files": {
               "_Utility/cdrdao": {
-                "hash": "$(md5sum Scripts/.config/mister-cdrdao/cdrdao | cut -d' ' -f1)",
-                "size": $(wc -c < Scripts/.config/mister-cdrdao/cdrdao),
+                "hash": "\$(md5sum Scripts/.config/mister-cdrdao/cdrdao | cut -d' ' -f1)",
+                "size": \$(wc -c < Scripts/.config/mister-cdrdao/cdrdao),
                 "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/cdrdao",
                 "tags": ["cdrdao", "utility"],
                 "overwrite": true,
                 "reboot": false
               },
               "_Utility/toc2cue": {
-                "hash": "$(md5sum Scripts/.config/mister-cdrdao/toc2cue | cut -d' ' -f1)",
-                "size": $(wc -c < Scripts/.config/mister-cdrdao/toc2cue),
+                "hash": "\$(md5sum Scripts/.config/mister-cdrdao/toc2cue | cut -d' ' -f1)",
+                "size": \$(wc -c < Scripts/.config/mister-cdrdao/toc2cue),
                 "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/.config/mister-cdrdao/toc2cue",
                 "tags": ["cdrdao", "utility"],
+                "overwrite": true,
+                "reboot": false
+              },
+              "Scripts/install_cdrdao.sh": {
+                "hash": "\$(md5sum Scripts/install_cdrdao.sh | cut -d' ' -f1)",
+                "size": \$(wc -c < Scripts/install_cdrdao.sh),
+                "url": "https://raw.githubusercontent.com/towerwatchman/MiSTer_cdrdao/main/Scripts/install_cdrdao.sh",
+                "tags": ["cdrdao", "utility", "script"],
                 "overwrite": true,
                 "reboot": false
               }
@@ -108,6 +151,9 @@ jobs:
             "folders": {
               "_Utility": {
                 "tags": ["cdrdao"]
+              },
+              "Scripts": {
+                "tags": ["cdrdao", "script"]
               }
             },
             "default_options": {
@@ -115,10 +161,8 @@ jobs:
             }
           }
           EOL
-          # Zip the JSON file
-          #zip mister_cdrdao_db.json.zip mister_cdrdao_db.json
 
-      - name: Create db Directory and Move ZIP
+      - name: Create db Directory and Move JSON file
         run: |
           mkdir -p db
           mv mister_cdrdao_db.json db/
@@ -128,8 +172,9 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add Scripts/.config/mister-cdrdao/*
+          git add Scripts/install_cdrdao.sh
           git add db/mister_cdrdao_db.json
-          git commit -m "Update cdrdao, toc2cue, and mister_cdrdao_db.json for $GITHUB_SHA" || echo "No changes to commit"
+          git commit -m "Update cdrdao, toc2cue, install_cdrdao.sh, and mister_cdrdao_db.json for $GITHUB_SHA" || echo "No changes to commit"
           git push origin main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -148,7 +193,7 @@ jobs:
           echo "Attempting to create or update release with tag: $TAG"
           gh release create "$TAG" \
             --title "cdrdao ${CDRDAO_VERSION} for MiSTer" \
-            --notes "Built for MiSTer FPGA (ARM). Includes cdrdao and toc2cue binaries." \
+            --notes "Built for MiSTer FPGA (ARM). Includes cdrdao, toc2cue binaries, and install script." \
             --draft=false \
             cdrdao-mister.tar.gz || \
           gh release upload "$TAG" cdrdao-mister.tar.gz --clobber
