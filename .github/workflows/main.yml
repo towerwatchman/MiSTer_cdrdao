@@ -24,14 +24,16 @@ jobs:
       - name: Install Dependencies
         run: |
           apt-get update
+          dpkg --add-architecture i386
+          apt-get update
           export DEBIAN_FRONTEND=noninteractive
           echo "tzdata tzdata/Areas select Etc" | debconf-set-selections
           echo "tzdata tzdata/Zones/Etc select UTC" | debconf-set-selections
           apt-get install -y -qq \
-            binfmt-support qemu-user-static autoconf bc bison build-essential curl \
+            binfmt-support qemu-user-static autoconf bc bison build-essential curl wget \
             flex gcc git libelf-dev libgmp3-dev libiberty-dev liblz4-tool libmpc-dev \
             libncurses-dev libncurses5-dev libpci-dev libssl-dev libudev-dev lzop \
-            openssl qemu-user sharutils u-boot-tools unzip wget
+            openssl qemu-user sharutils u-boot-tools unzip libc6:i386 libstdc++6:i386
 
       - name: Setup QEMU for ARM
         run: |
