@@ -10,6 +10,7 @@ permissions: write-all
 jobs:
   build_mister_cdrdao:
     runs-on: ubuntu-latest
+    container: ubuntu:20.04
 
     env:
       CDRDAO_VERSION: 1.2.5
@@ -22,8 +23,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y -qq \
+          apt-get update
+          apt-get install -y -qq \
             binfmt-support qemu-user-static autoconf bc bison build-essential curl \
             flex gcc git libelf-dev libgmp3-dev libiberty-dev liblz4-tool libmpc-dev \
             libncurses-dev libncurses5-dev libpci-dev libssl-dev libudev-dev lzop \
@@ -31,25 +32,25 @@ jobs:
 
       - name: Setup QEMU for ARM
         run: |
-          sudo cp /usr/bin/qemu-arm-static /usr/local/bin/
-          sudo update-binfmts --install qemu-arm /usr/local/bin/qemu-arm-static \
+          cp /usr/bin/qemu-arm-static /usr/local/bin/
+          update-binfmts --install qemu-arm /usr/local/bin/qemu-arm-static \
             --magic "\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00" \
             --mask "\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff" || true
 
       - name: Install Linaro GCC 10.2
         run: |
           wget -q -c https://developer.arm.com/-/media/Files/downloads/gnu-a/${GCC_VERSION}/binrel/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
-          sudo mkdir -p /opt
-          sudo tar xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt
+          mkdir -p /opt
+          tar xf gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz -C /opt
           rm gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf.tar.xz
           export PATH=/opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/bin:$PATH
           arm-none-linux-gnueabihf-gcc --version
 
       - name: Setup ARM Library Symlinks
         run: |
-          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
-          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libc.so.6 /lib/libc.so.6
-          sudo ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libpthread.so.0 /lib/libpthread.so.0
+          ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
+          ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libc.so.6 /lib/libc.so.6
+          ln -sf /opt/gcc-arm-${GCC_VERSION}-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/libc/lib/libpthread.so.0 /lib/libpthread.so.0
 
       - name: Build CDRDAO
         run: |
